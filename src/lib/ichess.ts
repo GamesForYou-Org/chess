@@ -56,16 +56,26 @@ enum MoveResult {
 }
 
 interface MoveValidator {
-  isAllowed: (board: Board, from: Position, to: Position) => MoveResult;
+  isAllowed: (
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ) => MoveResult;
 }
 
 abstract class AbstractMoveValidator implements MoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
     const b = board.getBoard();
     const fromPiece = b[from.row][from.column];
     const toPiece = b[to.row][to.column];
 
-    if (toPiece && fromPiece?.color === toPiece.color) {
+    if (!check && toPiece && fromPiece?.color === toPiece.color) {
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -74,8 +84,13 @@ abstract class AbstractMoveValidator implements MoveValidator {
 }
 
 class RookMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
-    if (super.isAllowed(board, from, to) === MoveResult.NOT_ALLOWED) {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
+    if (super.isAllowed(board, from, to, check) === MoveResult.NOT_ALLOWED) {
       return MoveResult.NOT_ALLOWED;
     }
     const sameRow = from.row === to.row;
@@ -124,51 +139,79 @@ class RookMoveValidator extends AbstractMoveValidator {
 }
 
 class BishopMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
-    if (super.isAllowed(board, from, to) === MoveResult.NOT_ALLOWED) {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
+    if (super.isAllowed(board, from, to, check) === MoveResult.NOT_ALLOWED) {
+      console.log("bishop super not allowed");
       return MoveResult.NOT_ALLOWED;
     }
     const b = board.getBoard();
 
-    const rowDiff = from.row - to.row;
-    const colDiff = from.column - to.column;
+    console.log("from.row:", from.row);
+    console.log("to.row:", to.row);
+    console.log("from.column:", from.column);
+    console.log("to.column:", to.column);
+    const rowDiff = to.row - from.row;
+    const colDiff = to.column - from.column;
     const diagonal = Math.abs(rowDiff) === Math.abs(colDiff);
     if (!diagonal) {
+      console.log("bishop move not diagonal");
       return MoveResult.NOT_ALLOWED;
     }
 
-    const lt = (a: number, b: number) => a < b;
-    const gt = (a: number, b: number) => a > b;
+    const lt = (a: number, b: number) => a <= b;
+    const gt = (a: number, b: number) => a >= b;
     const rowInc = rowDiff > 0 ? 1 : -1;
     const colInc = colDiff > 0 ? 1 : -1;
     const rowOp = rowDiff > 0 ? lt : gt;
     const colOp = colDiff > 0 ? lt : gt;
 
-    for (let r = from.row + rowInc; rowOp(r, to.row); r = r + rowInc) {
-      for (let c = from.column + colInc; colOp(c, to.column); c = c + colInc) {
-        if (b[r][c]) {
-          return MoveResult.NOT_ALLOWED;
-        }
+    console.log("bishop rowDiff", rowDiff);
+    console.log("bishop colDiff", colDiff);
+    for (
+      let r = from.row + rowInc, c = from.column + colInc;
+      rowOp(r, to.row) && colOp(c, to.column);
+      r = r + rowInc, c = c + colInc
+    ) {
+      console.log("bishop:", b[r][c]);
+      if (b[r][c] && r !== to.row && c !== to.column) {
+        console.log("bishop: not allowed");
+        return MoveResult.NOT_ALLOWED;
       }
     }
 
+    console.log("bishop allowed");
     return MoveResult.ALLOWED;
   }
 }
 
 class QueenMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
     const v1 = new RookMoveValidator();
     const v2 = new BishopMoveValidator();
-    const r = v1.isAllowed(board, from, to);
+    const r = v1.isAllowed(board, from, to, check);
 
-    return r === MoveResult.ALLOWED ? r : v2.isAllowed(board, from, to);
+    return r === MoveResult.ALLOWED ? r : v2.isAllowed(board, from, to, check);
   }
 }
 
 class KingMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
-    if (super.isAllowed(board, from, to) === MoveResult.NOT_ALLOWED) {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
+    if (super.isAllowed(board, from, to, check) === MoveResult.NOT_ALLOWED) {
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -268,7 +311,12 @@ class KingMoveValidator extends AbstractMoveValidator {
 }
 
 class PawnMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
     const b = board.getBoard();
     if (
       (from.row === 6 && to.row === 4 && from.column === to.column) ||
@@ -297,39 +345,46 @@ class PawnMoveValidator extends AbstractMoveValidator {
     }
 
     if (
-      (from.row + 1 == to.row || from.row - 1 == to.row) &&
+      (from.row + 1 === to.row || from.row - 1 === to.row) &&
       (from.column + 1 === to.column || from.column - 1 === to.column)
     ) {
       const bp = b[to.row][to.column];
-      if (bp && bp.color === board.getCurrent()) {
-        return to.row === 7 || to.row === 0
-          ? MoveResult.PAWN_PROMOTION
-          : MoveResult.ALLOWED;
-      } else if (bp) {
-        return MoveResult.ALLOWED;
-      } else if (from.row + 1 == to.row) {
-        const maybePassant = b[from.row][to.column];
-        if (maybePassant && maybePassant === board.getEnPassant()) {
-          return MoveResult.ALLOWED_BLACK_GET_EN_PASSANT_WHITE;
-        } else {
-          return MoveResult.NOT_ALLOWED;
-        }
-      } else if (from.row - 1 == to.row) {
-        const maybePassant = b[from.row][to.column];
-        if (maybePassant && maybePassant === board.getEnPassant()) {
-          return MoveResult.ALLOWED_WHITE_GET_EN_PASSANT_BLACK;
-        } else {
-          return MoveResult.NOT_ALLOWED;
-        }
+      const maybePassant = b[from.row][to.column];
+      if (!bp && maybePassant && maybePassant === board.getEnPassant()) {
+        return from.row > to.row
+          ? MoveResult.ALLOWED_WHITE_GET_EN_PASSANT_BLACK
+          : MoveResult.ALLOWED_BLACK_GET_EN_PASSANT_WHITE;
       }
+
+      // if (checkVerification && bp && bp.color === board.getCurrent()) {
+      //   return MoveResult.ALLOWED;
+      // }
+
+      // if (!checkVerification && bp && bp.color === board.getCurrent()) {
+      //   return MoveResult.NOT_ALLOWED;
+      // }
+
+      if (bp && bp.color === board.getCurrent()) {
+        return MoveResult.NOT_ALLOWED;
+      }
+
+      return to.row === 7 || to.row === 0
+        ? MoveResult.PAWN_PROMOTION
+        : MoveResult.ALLOWED;
     }
+
     return MoveResult.NOT_ALLOWED;
   }
 }
 
 class KnightMoveValidator extends AbstractMoveValidator {
-  isAllowed(board: Board, from: Position, to: Position): MoveResult {
-    if (super.isAllowed(board, from, to) == MoveResult.NOT_ALLOWED) {
+  isAllowed(
+    board: Board,
+    from: Position,
+    to: Position,
+    check: boolean
+  ): MoveResult {
+    if (super.isAllowed(board, from, to, check) == MoveResult.NOT_ALLOWED) {
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -355,6 +410,11 @@ export enum Capture {
   No
 }
 
+export interface MoveOutput {
+  capture: Capture;
+  promoteOptions?: Array<BoardPiece>;
+}
+
 // TODO: implement draws
 // TODO: implement not keep own king in check
 export class Board {
@@ -371,6 +431,10 @@ export class Board {
   constructor() {
     this.board = this.createBoard();
     this.current = PieceColor.White;
+  }
+
+  promote(bp: BoardPiece, to: Position): void {
+    this.board[to.row][to.column] = bp;
   }
 
   getCurrentKingMoved(): boolean {
@@ -431,7 +495,7 @@ export class Board {
     return this.board;
   }
 
-  move(from: Position, to: Position): Capture {
+  move(from: Position, to: Position): MoveOutput {
     const boardPiece = this.board[from.row][from.column];
     if (!boardPiece) {
       throw new Error("No piece in from position");
@@ -439,7 +503,7 @@ export class Board {
     if (boardPiece.color !== this.current) {
       throw new Error("Not your turn " + boardPiece.color);
     }
-    const moveAllowed = this.moveAllowed(boardPiece, from, to);
+    const moveAllowed = this.moveAllowed(boardPiece, from, to, false);
     if (moveAllowed === MoveResult.NOT_ALLOWED) {
       throw new Error("move not allowed");
     }
@@ -451,17 +515,28 @@ export class Board {
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return Capture.No;
+      return {
+        capture: Capture.No
+      };
     }
 
     if (moveAllowed === MoveResult.PAWN_PROMOTION) {
       const toBp = this.board[to.row][to.column];
-      this.board[to.row][to.column] = new BoardPiece(Piece.Queen, this.current);
       this.board[from.row][from.column] = null;
+
+      const promoteOptions = [
+        new BoardPiece(Piece.Queen, this.current),
+        new BoardPiece(Piece.Rook, this.current),
+        new BoardPiece(Piece.Bishop, this.current),
+        new BoardPiece(Piece.Knight, this.current)
+      ];
+
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return toBp ? Capture.Yes : Capture.No;
+      return toBp
+        ? { capture: Capture.Yes, promoteOptions: promoteOptions }
+        : { capture: Capture.No, promoteOptions: promoteOptions };
     }
 
     this.enPassant = null;
@@ -472,7 +547,9 @@ export class Board {
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return Capture.Yes;
+      return {
+        capture: Capture.Yes
+      };
     }
 
     if (moveAllowed === MoveResult.ALLOWED_WHITE_GET_EN_PASSANT_BLACK) {
@@ -482,7 +559,9 @@ export class Board {
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return Capture.Yes;
+      return {
+        capture: Capture.Yes
+      };
     }
 
     if (moveAllowed === MoveResult.BIG_CASTLING_ALLOWED) {
@@ -503,7 +582,9 @@ export class Board {
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return Capture.No;
+      return {
+        capture: Capture.No
+      };
     }
 
     if (moveAllowed === MoveResult.SMALL_CASTLING_ALLOWED) {
@@ -524,7 +605,9 @@ export class Board {
       this.current =
         this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-      return Capture.No;
+      return {
+        capture: Capture.No
+      };
     }
 
     const toBoardPiece = this.board[to.row][to.column];
@@ -558,11 +641,9 @@ export class Board {
     this.current =
       this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-    return toBoardPiece ? Capture.Yes : Capture.No;
+    return toBoardPiece ? { capture: Capture.Yes } : { capture: Capture.No };
   }
 
-  // TODO: fix bug pawn
-  // TODO: fix bug bishop
   isCheck(to: Position): boolean {
     const opColor =
       this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
@@ -571,7 +652,12 @@ export class Board {
       for (let c = 0; c < this.board[r].length; c++) {
         const bp = this.board[r][c];
         if (bp && bp.color === opColor) {
-          const moveAllowed = this.moveAllowed(bp, new Position(r, c), to);
+          const moveAllowed = this.moveAllowed(
+            bp,
+            new Position(r, c),
+            to,
+            true
+          );
           if (moveAllowed === MoveResult.ALLOWED) {
             console.log("Check " + bp.getPiece() + " from " + r + "," + c);
             return true;
@@ -585,10 +671,12 @@ export class Board {
   private moveAllowed(
     boardPiece: BoardPiece,
     from: Position,
-    to: Position
+    to: Position,
+    check: boolean
   ): MoveResult {
     const piece = boardPiece.piece;
-    return moveValidators[piece].isAllowed(this, from, to);
+    console.log("move validator:", moveValidators[piece]);
+    return moveValidators[piece].isAllowed(this, from, to, check);
   }
 
   private createBoard(): Array<Array<BoardPiece | null>> {
@@ -627,4 +715,10 @@ export class Board {
       board[secondRow][i] = createFn(Piece.Pawn);
     }
   }
+}
+
+export interface PromoteConfig {
+  to: Position;
+  promoteOptions: Array<BoardPiece>;
+  board: Board;
 }

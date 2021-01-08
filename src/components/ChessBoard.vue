@@ -3,6 +3,15 @@
     <table cellspacing="0" cellpadding="0">
       <tr v-for="(row, r) in board.getBoard()" v-bind:key="r">
         <td v-for="(col, c) in row" v-bind:key="c" :class="getClass(r, c)">
+          <span
+            v-if="
+              promoteConfig &&
+                promoteConfig.to.row === r &&
+                promoteConfig.to.column === c
+            "
+          >
+            <Promote :promoteConfig="promoteConfig" :chessBoard="getSelf()" />
+          </span>
           <span v-if="col !== null">
             <img
               v-bind:src="getImage(col)"
@@ -28,11 +37,30 @@
 </template>
 
 <script lang="ts">
-import { Vue } from "vue-class-component";
-import { Board, PieceColor, Piece, BoardPiece, Position } from "../lib/ichess";
+import { Options, Vue } from "vue-class-component";
+import Promote from "./Promote.vue";
+import {
+  Board,
+  PieceColor,
+  Piece,
+  BoardPiece,
+  Position,
+  PromoteConfig
+} from "../lib/ichess";
 
+@Options({
+  components: {
+    Promote
+  }
+})
 export default class ChessBoard extends Vue {
   board = new Board();
+  promoteConfig: PromoteConfig | null = null;
+
+  getSelf(): ChessBoard {
+    return this;
+  }
+
   getImage(bp: BoardPiece): string {
     const images = require.context("../assets/", false, /\.png$/);
     if (bp && bp.getPiece() === Piece.King) {
@@ -133,8 +161,19 @@ export default class ChessBoard extends Vue {
 
       const from = new Position(fromRow, fromCol);
       const to = new Position(toRow, toCol);
-      this.board.move(from, to);
+      const moveOutput = this.board.move(from, to);
+      if (moveOutput.promoteOptions) {
+        this.promoteConfig = {
+          to: to,
+          promoteOptions: moveOutput.promoteOptions,
+          board: this.board
+        };
+      }
     }
+  }
+
+  promotionCompleted(): void {
+    this.promoteConfig = null;
   }
 }
 </script>
