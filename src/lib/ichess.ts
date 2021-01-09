@@ -420,6 +420,30 @@ export class Board {
     this.current = PieceColor.White;
   }
 
+  static of(
+    board: Array<Array<BoardPiece | null>>,
+    current: PieceColor,
+    kingBlackMoved: boolean,
+    kingWhiteMoved: boolean,
+    rookQueenWhiteMoved: boolean,
+    rookQueenBlackMoved: boolean,
+    rookKingWhiteMoved: boolean,
+    rookKingBlackMoved: boolean,
+    enPassant: BoardPiece | null
+  ): Board {
+    const b = new Board();	    
+    b.board = board;
+    b.current = current;
+    b.kingBlackMoved = kingBlackMoved;
+    b.kingWhiteMoved = kingWhiteMoved;
+    b.rookQueenWhiteMoved = rookQueenWhiteMoved;
+    b.rookQueenBlackMoved = rookQueenBlackMoved;
+    b.rookKingWhiteMoved = rookKingWhiteMoved;
+    b.rookKingBlackMoved = rookKingBlackMoved;
+    b.enPassant = enPassant;
+    return b;	    
+  }
+
   promote(bp: BoardPiece, to: Position): void {
     this.board[to.row][to.column] = bp;
   }
@@ -700,10 +724,87 @@ export class Board {
       board[secondRow][i] = createFn(Piece.Pawn);
     }
   }
+
+  copy(bp: BoardPiece, to: Position): Board | null {
+    return null;
+  }
+
 }
 
 export interface PromoteConfig {
   to: Position;
   promoteOptions: Array<BoardPiece>;
   board: Board;
+}
+	  
+class BoardBuilder {
+  private b: Array<Array<BoardPiece | null>> = [];
+  private curr: PieceColor  = PieceColor.White;
+  private kingBlackMov = false;
+  private kingWhiteMov = false;
+  private rookQueenWhiteMov = false;
+  private rookQueenBlackMov = false;
+  private rookKingWhiteMov = false;
+  private rookKingBlackMov = false;
+  private enPass: BoardPiece | null = null;
+
+  board(b: Array<Array<BoardPiece | null>>): BoardBuilder {
+    this.b = b;
+    return this;
+  }
+
+  current(curr: PieceColor): BoardBuilder {
+    this.curr = curr;
+    return this;
+  }
+  
+  kingBlackMoved(kingBlackMov: boolean): BoardBuilder {
+    this.kingBlackMov = kingBlackMov;	  
+    return this;	  
+  }		  
+  		  
+  kingWhiteMoved(kingWhiteMov: boolean): BoardBuilder {
+    this.kingWhiteMov = kingWhiteMov;	  
+    return this;	  
+  }
+		  
+  rookQueenWhiteMoved(rookQueenWhiteMov: boolean): BoardBuilder {
+    this.rookQueenWhiteMov = rookQueenWhiteMov;	  
+    return this;	  
+  }
+
+  rookQueenBlackMoved(rookQueenBlackMov: boolean): BoardBuilder {
+    this.rookQueenBlackMov = rookQueenBlackMov;	  
+    return this;	  
+  }
+		  
+  rookKingBlackMoved(rookKingBlackMov: boolean): BoardBuilder {
+    this.rookKingBlackMov = rookKingBlackMov;	  
+    return this;	  
+  }
+		  
+  rookKingWhiteMoved(rookKingWhiteMov: boolean): BoardBuilder {
+    this.rookKingWhiteMov = rookKingWhiteMov;	  
+    return this;	  
+  }
+
+  enPassant(enPass: BoardPiece | null): BoardBuilder {
+    this.enPass = enPass;
+    return this;
+  }
+
+  build(): Board {
+    return Board.of(
+      this.b,
+      this.curr,
+      this.kingBlackMov,
+      this.kingWhiteMov,
+      this.rookQueenWhiteMov,
+      this.rookQueenBlackMov,
+      this.rookKingWhiteMov,
+      this.rookKingBlackMov,
+      this.enPass
+    );
+  }
+
 }
