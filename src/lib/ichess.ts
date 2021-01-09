@@ -282,7 +282,7 @@ class KingMoveValidator extends AbstractMoveValidator {
       return MoveResult.NOT_ALLOWED;
     }
 
-    for (let c = from.column + inc; op(c, to.column); c++) {
+    for (let c = from.column + inc; op(c, to.column); c = c + inc) {
       if (board.isCheck(new Position(from.row, c))) {
         return MoveResult.NOT_ALLOWED;
       }
