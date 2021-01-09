@@ -151,15 +151,10 @@ class BishopMoveValidator extends AbstractMoveValidator {
     }
     const b = board.getBoard();
 
-    console.log("from.row:", from.row);
-    console.log("to.row:", to.row);
-    console.log("from.column:", from.column);
-    console.log("to.column:", to.column);
     const rowDiff = to.row - from.row;
     const colDiff = to.column - from.column;
     const diagonal = Math.abs(rowDiff) === Math.abs(colDiff);
     if (!diagonal) {
-      console.log("bishop move not diagonal");
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -170,21 +165,16 @@ class BishopMoveValidator extends AbstractMoveValidator {
     const rowOp = rowDiff > 0 ? lt : gt;
     const colOp = colDiff > 0 ? lt : gt;
 
-    console.log("bishop rowDiff", rowDiff);
-    console.log("bishop colDiff", colDiff);
     for (
       let r = from.row + rowInc, c = from.column + colInc;
       rowOp(r, to.row) && colOp(c, to.column);
       r = r + rowInc, c = c + colInc
     ) {
-      console.log("bishop:", b[r][c]);
       if (b[r][c] && r !== to.row && c !== to.column) {
-        console.log("bishop: not allowed");
         return MoveResult.NOT_ALLOWED;
       }
     }
 
-    console.log("bishop allowed");
     return MoveResult.ALLOWED;
   }
 }
@@ -356,15 +346,11 @@ class PawnMoveValidator extends AbstractMoveValidator {
           : MoveResult.ALLOWED_BLACK_GET_EN_PASSANT_WHITE;
       }
 
-      // if (checkVerification && bp && bp.color === board.getCurrent()) {
-      //   return MoveResult.ALLOWED;
-      // }
+      if (check && (!bp || bp.color === board.getCurrent())) {
+        return MoveResult.ALLOWED;
+      }
 
-      // if (!checkVerification && bp && bp.color === board.getCurrent()) {
-      //   return MoveResult.NOT_ALLOWED;
-      // }
-
-      if (bp && bp.color === board.getCurrent()) {
+      if (!bp || bp.color === board.getCurrent()) {
         return MoveResult.NOT_ALLOWED;
       }
 
@@ -417,6 +403,7 @@ export interface MoveOutput {
 
 // TODO: implement draws
 // TODO: implement not keep own king in check
+// TODO: when king is in check, do not allow move that keeps it in check
 export class Board {
   private board: Array<Array<BoardPiece | null>>;
   private current: PieceColor;
@@ -659,7 +646,6 @@ export class Board {
             true
           );
           if (moveAllowed === MoveResult.ALLOWED) {
-            console.log("Check " + bp.getPiece() + " from " + r + "," + c);
             return true;
           }
         }
@@ -675,7 +661,6 @@ export class Board {
     check: boolean
   ): MoveResult {
     const piece = boardPiece.piece;
-    console.log("move validator:", moveValidators[piece]);
     return moveValidators[piece].isAllowed(this, from, to, check);
   }
 
