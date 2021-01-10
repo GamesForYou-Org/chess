@@ -22,6 +22,9 @@ export enum PieceColor {
 
 export class Position {
   constructor(readonly row: number, readonly column: number) {}
+  equals(p: Position): boolean {
+    return p && p.row === this.row && p.column === this.column;
+  }
 }
 
 export class BoardPiece {
@@ -93,6 +96,9 @@ class RookMoveValidator extends AbstractMoveValidator {
     if (super.isAllowed(board, from, to, check) === MoveResult.NOT_ALLOWED) {
       return MoveResult.NOT_ALLOWED;
     }
+    if (from.equals(to)) {
+      return MoveResult.NOT_ALLOWED;
+    }
     const sameRow = from.row === to.row;
     const sameCol = from.column === to.column;
 
@@ -129,7 +135,10 @@ class RookMoveValidator extends AbstractMoveValidator {
     };
 
     for (let i = fromValue + inc; op(i, toValue); i = i + inc) {
-      if (getValue(i)) {
+      const bp = getValue(i);
+      if (!check && bp) {
+        return MoveResult.NOT_ALLOWED;
+      } else if (check && bp && bp.getPiece() !== Piece.King) {
         return MoveResult.NOT_ALLOWED;
       }
     }
@@ -147,6 +156,9 @@ class BishopMoveValidator extends AbstractMoveValidator {
   ): MoveResult {
     if (super.isAllowed(board, from, to, check) === MoveResult.NOT_ALLOWED) {
       console.log("bishop super not allowed");
+      return MoveResult.NOT_ALLOWED;
+    }
+    if (from.equals(to)) {
       return MoveResult.NOT_ALLOWED;
     }
     const b = board.getBoard();
@@ -170,7 +182,10 @@ class BishopMoveValidator extends AbstractMoveValidator {
       rowOp(r, to.row) && colOp(c, to.column);
       r = r + rowInc, c = c + colInc
     ) {
-      if (b[r][c] && r !== to.row && c !== to.column) {
+      const bp = b[r][c];
+      if (!check && bp && r !== to.row && c !== to.column) {
+        return MoveResult.NOT_ALLOWED;
+      } else if (check && bp && bp.getPiece() !== Piece.King) {
         return MoveResult.NOT_ALLOWED;
       }
     }
@@ -431,7 +446,7 @@ export class Board {
     rookKingBlackMoved: boolean,
     enPassant: BoardPiece | null
   ): Board {
-    const b = new Board();	    
+    const b = new Board();
     b.board = board;
     b.current = current;
     b.kingBlackMoved = kingBlackMoved;
@@ -441,7 +456,7 @@ export class Board {
     b.rookKingWhiteMoved = rookKingWhiteMoved;
     b.rookKingBlackMoved = rookKingBlackMoved;
     b.enPassant = enPassant;
-    return b;	    
+    return b;
   }
 
   promote(bp: BoardPiece, to: Position): void {
@@ -724,11 +739,6 @@ export class Board {
       board[secondRow][i] = createFn(Piece.Pawn);
     }
   }
-
-  copy(bp: BoardPiece, to: Position): Board | null {
-    return null;
-  }
-
 }
 
 export interface PromoteConfig {
@@ -736,10 +746,10 @@ export interface PromoteConfig {
   promoteOptions: Array<BoardPiece>;
   board: Board;
 }
-	  
+
 class BoardBuilder {
   private b: Array<Array<BoardPiece | null>> = [];
-  private curr: PieceColor  = PieceColor.White;
+  private curr: PieceColor = PieceColor.White;
   private kingBlackMov = false;
   private kingWhiteMov = false;
   private rookQueenWhiteMov = false;
@@ -757,35 +767,35 @@ class BoardBuilder {
     this.curr = curr;
     return this;
   }
-  
+
   kingBlackMoved(kingBlackMov: boolean): BoardBuilder {
-    this.kingBlackMov = kingBlackMov;	  
-    return this;	  
-  }		  
-  		  
-  kingWhiteMoved(kingWhiteMov: boolean): BoardBuilder {
-    this.kingWhiteMov = kingWhiteMov;	  
-    return this;	  
+    this.kingBlackMov = kingBlackMov;
+    return this;
   }
-		  
+
+  kingWhiteMoved(kingWhiteMov: boolean): BoardBuilder {
+    this.kingWhiteMov = kingWhiteMov;
+    return this;
+  }
+
   rookQueenWhiteMoved(rookQueenWhiteMov: boolean): BoardBuilder {
-    this.rookQueenWhiteMov = rookQueenWhiteMov;	  
-    return this;	  
+    this.rookQueenWhiteMov = rookQueenWhiteMov;
+    return this;
   }
 
   rookQueenBlackMoved(rookQueenBlackMov: boolean): BoardBuilder {
-    this.rookQueenBlackMov = rookQueenBlackMov;	  
-    return this;	  
+    this.rookQueenBlackMov = rookQueenBlackMov;
+    return this;
   }
-		  
+
   rookKingBlackMoved(rookKingBlackMov: boolean): BoardBuilder {
-    this.rookKingBlackMov = rookKingBlackMov;	  
-    return this;	  
+    this.rookKingBlackMov = rookKingBlackMov;
+    return this;
   }
-		  
+
   rookKingWhiteMoved(rookKingWhiteMov: boolean): BoardBuilder {
-    this.rookKingWhiteMov = rookKingWhiteMov;	  
-    return this;	  
+    this.rookKingWhiteMov = rookKingWhiteMov;
+    return this;
   }
 
   enPassant(enPass: BoardPiece | null): BoardBuilder {
@@ -806,5 +816,33 @@ class BoardBuilder {
       this.enPass
     );
   }
+}
 
+class BoardUtil {
+  static copy(board: Board, bp: BoardPiece, to: Position): Board {
+    const b: Array<Array<BoardPiece | null>> = [];
+
+    board.getBoard().forEach((row, i) => {
+      if (!b[i]) {
+        b[i] = [];
+      }
+      row.forEach((col, j) => {
+        b[i][j] = col;
+      });
+    });
+
+    b[to.row][to.column] = bp;
+
+    return new BoardBuilder()
+      .board(b)
+      .current(board.getCurrent())
+      .enPassant(board.getEnPassant())
+      .kingBlackMoved(board.getKingBlackMoved())
+      .kingWhiteMoved(board.getKingWhiteMoved())
+      .rookKingBlackMoved(board.getRookKingBlackMoved())
+      .rookKingWhiteMoved(board.getRookKingWhiteMoved())
+      .rookQueenBlackMoved(board.getRookQueenBlackMoved())
+      .rookQueenWhiteMoved(board.getRookQueenWhiteMoved())
+      .build();
+  }
 }
