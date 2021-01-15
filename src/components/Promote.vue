@@ -81,7 +81,7 @@ ul {
 li {
   display: block;
   border: 1px solid wheat;
-  background: #FFF8DC;
+  background: #fff8dc;
 }
 img {
   width: 70px;

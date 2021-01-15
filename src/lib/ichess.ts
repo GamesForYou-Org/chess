@@ -96,7 +96,10 @@ class RookMoveValidator extends AbstractMoveValidator {
     check: boolean,
     verifyOpInCheck: boolean
   ): MoveResult {
-    if (super.isAllowed(board, from, to, check, verifyOpInCheck) === MoveResult.NOT_ALLOWED) {
+    if (
+      super.isAllowed(board, from, to, check, verifyOpInCheck) ===
+      MoveResult.NOT_ALLOWED
+    ) {
       return MoveResult.NOT_ALLOWED;
     }
     if (from.equals(to)) {
@@ -158,7 +161,10 @@ class BishopMoveValidator extends AbstractMoveValidator {
     check: boolean,
     verifyOpInCheck: boolean
   ): MoveResult {
-    if (super.isAllowed(board, from, to, check, verifyOpInCheck) === MoveResult.NOT_ALLOWED) {
+    if (
+      super.isAllowed(board, from, to, check, verifyOpInCheck) ===
+      MoveResult.NOT_ALLOWED
+    ) {
       console.log("bishop super not allowed");
       return MoveResult.NOT_ALLOWED;
     }
@@ -210,7 +216,9 @@ class QueenMoveValidator extends AbstractMoveValidator {
     const v2 = new BishopMoveValidator();
     const r = v1.isAllowed(board, from, to, check, verifyOpInCheck);
 
-    return r === MoveResult.ALLOWED ? r : v2.isAllowed(board, from, to, check, verifyOpInCheck);
+    return r === MoveResult.ALLOWED
+      ? r
+      : v2.isAllowed(board, from, to, check, verifyOpInCheck);
   }
 }
 
@@ -222,7 +230,10 @@ class KingMoveValidator extends AbstractMoveValidator {
     check: boolean,
     verifyOpInCheck: boolean
   ): MoveResult {
-    if (super.isAllowed(board, from, to, check, verifyOpInCheck) === MoveResult.NOT_ALLOWED) {
+    if (
+      super.isAllowed(board, from, to, check, verifyOpInCheck) ===
+      MoveResult.NOT_ALLOWED
+    ) {
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -335,9 +346,10 @@ class PawnMoveValidator extends AbstractMoveValidator {
   ): MoveResult {
     const b = board.getBoard();
     const isWhite = board.getCurrent() === PieceColor.White;
-    if (!check &&
+    if (
+      !check &&
       ((from.row === 6 && to.row === 4 && from.column === to.column) ||
-      (from.row == 1 && to.row == 3 && from.column === to.column))
+        (from.row == 1 && to.row == 3 && from.column === to.column))
     ) {
       const bp = b[to.row][to.column];
       if (bp) {
@@ -347,7 +359,8 @@ class PawnMoveValidator extends AbstractMoveValidator {
       }
     }
 
-    if (!check &&
+    if (
+      !check &&
       from.column === to.column &&
       (from.row + 1 === to.row || from.row - 1 === to.row)
     ) {
@@ -362,7 +375,8 @@ class PawnMoveValidator extends AbstractMoveValidator {
     }
 
     if (
-      ((from.row + 1 === to.row && !isWhite) || (from.row - 1 === to.row && isWhite)) &&
+      ((from.row + 1 === to.row && !isWhite) ||
+        (from.row - 1 === to.row && isWhite)) &&
       (from.column + 1 === to.column || from.column - 1 === to.column)
     ) {
       const bp = b[to.row][to.column];
@@ -398,7 +412,10 @@ class KnightMoveValidator extends AbstractMoveValidator {
     check: boolean,
     verifyOpInCheck: boolean
   ): MoveResult {
-    if (super.isAllowed(board, from, to, check, verifyOpInCheck) == MoveResult.NOT_ALLOWED) {
+    if (
+      super.isAllowed(board, from, to, check, verifyOpInCheck) ==
+      MoveResult.NOT_ALLOWED
+    ) {
       return MoveResult.NOT_ALLOWED;
     }
 
@@ -547,7 +564,7 @@ export class Board {
       throw new Error("Not your turn " + boardPiece.color);
     }
     const moveAllowed = this.moveAllowed(boardPiece, from, to, false, false);
-    
+
     if (moveAllowed === MoveResult.NOT_ALLOWED) {
       throw new Error("move not allowed");
     }
@@ -719,7 +736,141 @@ export class Board {
     return this.isCheck(this.getCurrentKingPosition());
   }
 
-  isCheck(to: Position): boolean {
+  getCheckFromPositions(): Array<Position> {
+    const fromPos: Array<Position> = [];
+    const addFrom = (p: Position) => fromPos.push(p);
+    this.isCheck(this.getCurrentKingPosition(), addFrom);
+
+    return fromPos;
+  }
+
+  isCheckMate(): boolean {
+    const checkFromPos = this.getCheckFromPositions();
+
+    if (checkFromPos.length === 0) {
+      return false;
+    }
+
+    if (this.canCurrentKingMove()) {
+      return false;
+    }
+
+    if (checkFromPos.length == 1 && this.canSomePieceMoveTo(checkFromPos[0])) {
+      return false;
+    }
+
+    const kingPos = this.getCurrentKingPosition();
+    if (
+      checkFromPos.length === 1 &&
+      this.getPositionsBetween(checkFromPos[0], kingPos).some(p =>
+        this.canSomePieceMoveTo(p)
+      )
+    ) {
+      return false;
+    }
+
+    return true;
+  }
+
+  private getPositionsBetween(from: Position, to: Position): Array<Position> {
+    const fbp = this.board[from.row][from.column];
+    if (fbp!.getPiece() === Piece.Knight) {
+      return [];
+    }
+
+    if (fbp!.getPiece() === Piece.Pawn) {
+      return [];
+    }
+
+    if (
+      Math.abs(from.row - to.row) <= 1 &&
+      Math.abs(from.column - to.column) <= 1
+    ) {
+      return [];
+    }
+
+    let rInc = 0;
+    let cInc = 0;
+    let opR: (a: number, b: number) => boolean = (a, b) => true;
+    let opC: (a: number, b: number) => boolean = (a, b) => true;
+
+    const lt = (a: number, b: number) => a < b;
+    const gt = (a: number, b: number) => a > b;
+
+    // Bishop or Queen
+    if (from.row !== to.row && from.column !== to.column) {
+      rInc = from.row < to.row ? 1 : -1;
+      opR = from.row < to.row ? lt : gt;
+      cInc = from.column < to.column ? 1 : -1;
+      opC = from.column < to.column ? lt : gt;
+    } else if (from.column === to.column) {
+      rInc = from.row < to.row ? 1 : -1;
+      opR = from.row < to.row ? lt : gt;
+    } else {
+      cInc = from.column < to.column ? 1 : -1;
+      opC = from.column < to.column ? lt : gt;
+    }
+
+    const result: Array<Position> = [];
+    for (
+      let r = from.row + rInc, c = from.column + rInc;
+      opR(r, to.row) && opC(c, to.column);
+      r = r + rInc, c = c + cInc
+    ) {
+      result.push(new Position(r, c));
+    }
+
+    return result;
+  }
+
+  private canSomePieceMoveTo(p: Position): boolean {
+    return this.board.some((row, r) =>
+      row.some((bp, c) => {
+        if (bp && bp.getPieceColor() === this.getCurrent()) {
+          if (
+            this.moveAllowed(bp, new Position(r, c), p, false, false) ===
+            MoveResult.ALLOWED
+          ) {
+            return true;
+          }
+        }
+        return false;
+      })
+    );
+  }
+
+  private canCurrentKingMove(): boolean {
+    const kingPos = this.getCurrentKingPosition();
+    const king = this.board[kingPos.row][kingPos.column];
+    let to: Position;
+    const inc = [
+      [0, 1],
+      [0, -1],
+      [-1, 0],
+      [1, 0],
+      [1, 1],
+      [-1, 1],
+      [-1, -1],
+      [1, -1]
+    ];
+
+    return inc.some(ia => {
+      const r = kingPos.row + ia[0];
+      const c = kingPos.column + ia[1];
+      if (r >= 0 && r <= 7 && c >= 0 && c <= 7) {
+        const to = new Position(r, c);
+        if (
+          this.moveAllowed(king!, kingPos, to, false, false) ===
+          MoveResult.ALLOWED
+        ) {
+          return true;
+        }
+      }
+      return false;
+    });
+  }
+
+  isCheck(to: Position, addFrom?: (p: Position) => void): boolean {
     const opColor =
       this.current === PieceColor.White ? PieceColor.Black : PieceColor.White;
 
@@ -727,14 +878,12 @@ export class Board {
       for (let c = 0; c < this.board[r].length; c++) {
         const bp = this.board[r][c];
         if (bp && bp.color === opColor) {
-          const moveAllowed = this.moveAllowed(
-            bp,
-            new Position(r, c),
-            to,
-            true,
-            false
-          );
+          const p = new Position(r, c);
+          const moveAllowed = this.moveAllowed(bp, p, to, true, false);
           if (moveAllowed === MoveResult.ALLOWED) {
+            if (addFrom) {
+              addFrom(p);
+            }
             return true;
           }
         }
@@ -751,7 +900,13 @@ export class Board {
     verifyOpInCheck: boolean
   ): MoveResult {
     const piece = boardPiece.piece;
-    return moveValidators[piece].isAllowed(this, from, to, check, verifyOpInCheck);
+    return moveValidators[piece].isAllowed(
+      this,
+      from,
+      to,
+      check,
+      verifyOpInCheck
+    );
   }
 
   private createBoard(): Array<Array<BoardPiece | null>> {
@@ -792,11 +947,17 @@ export class Board {
   }
   getKingPosition(): Position {
     let pos: Position | null = null;
-    this.board.forEach((row, i) => row.forEach((col, j) => {
-      if (col && col.getPieceColor() === this.current && col.getPiece() === Piece.King) {
-        pos = new Position(i, j);
-      }
-    }));
+    this.board.forEach((row, i) =>
+      row.forEach((col, j) => {
+        if (
+          col &&
+          col.getPieceColor() === this.current &&
+          col.getPiece() === Piece.King
+        ) {
+          pos = new Position(i, j);
+        }
+      })
+    );
     if (!pos) {
       throw new Error("King not present");
     }
@@ -818,16 +979,26 @@ export class Board {
     b[from.row][from.column] = null;
     b[to.row][to.column] = bp;
 
-    return Board.of(b, this.current, this.kingBlackMoved, this.kingWhiteMoved,
-      this.rookQueenWhiteMoved, this.rookQueenBlackMoved, this.rookKingWhiteMoved,
-      this.rookKingBlackMoved, this.enPassant);
+    return Board.of(
+      b,
+      this.current,
+      this.kingBlackMoved,
+      this.kingWhiteMoved,
+      this.rookQueenWhiteMoved,
+      this.rookQueenBlackMoved,
+      this.rookKingWhiteMoved,
+      this.rookKingBlackMoved,
+      this.enPassant
+    );
   }
 
   isCheckFree(bp: BoardPiece, from: Position, to: Position): boolean {
     const boardCp = this.copy(bp, from, to);
     const opColor =
-      boardCp.getCurrent() === PieceColor.White ? PieceColor.Black : PieceColor.White;
-    
+      boardCp.getCurrent() === PieceColor.White
+        ? PieceColor.Black
+        : PieceColor.White;
+
     const kingPosition = boardCp.getKingPosition();
     boardCp.setCurrent(opColor);
 
@@ -960,8 +1131,10 @@ class BoardUtil {
   static isCheckFree(board: Board, bp: BoardPiece, to: Position): boolean {
     const boardCp = BoardUtil.copy(board, bp, to);
     const opColor =
-      boardCp.getCurrent() === PieceColor.White ? PieceColor.Black : PieceColor.White;
-    
+      boardCp.getCurrent() === PieceColor.White
+        ? PieceColor.Black
+        : PieceColor.White;
+
     const kingPosition = boardCp.getKingPosition();
     boardCp.setCurrent(opColor);
 

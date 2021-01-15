@@ -1,5 +1,6 @@
 <template>
   <div>
+    <span>{{ board.isCheckMate() }}</span>
     <table cellspacing="0" cellpadding="0">
       <tr v-for="(row, r) in board.getBoard()" v-bind:key="r">
         <td v-for="(col, c) in row" v-bind:key="c" :class="getClass(r, c)">
@@ -211,9 +212,9 @@ img {
   height: 60px;
 }
 .whiteClass {
-  background: #F1C27D;
+  background: #f1c27d;
 }
 .blackClass {
-  background:#C68642;
+  background: #c68642;
 }
 </style>
