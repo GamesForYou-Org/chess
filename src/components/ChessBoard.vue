@@ -3,7 +3,10 @@
     <span>{{ board.isCheckMate() }}</span>
     <table cellspacing="0" cellpadding="0">
       <tr v-for="(row, r) in board.getBoard()" v-bind:key="r">
-        <td v-for="(col, c) in row" v-bind:key="c" :class="getClass(r, c)">
+        <td v-for="(col, c) in row" v-bind:key="c"
+        v-bind:class="{ itsMe: itsMe(r, c), blackClass: isBlackClass(r, c), whiteClass: isWhiteClass(r, c) }"
+        v-on:click="setPositions(r, c) && moveToMe(r, c)"
+        >
           <span
             v-if="
               promoteConfig &&
@@ -16,19 +19,13 @@
           <span v-if="col !== null">
             <img
               v-bind:src="getImage(col)"
-              draggable
-              @dragstart="startDrag($event, r, c)"
-              @drop="onDrop($event, r, c)"
-              @dragover.prevent
-              @dragenter.prevent
+              v-bind:class="{ canMoveToMe: canMoveToMe(r, c), canTakeMe: canTakeMe(r, c) }"
             />
           </span>
           <span v-else>
             <img
               src="../assets/empty.png"
-              @drop="onDrop($event, r, c)"
-              @dragover.prevent
-              @dragenter.prevent
+              v-bind:class="{ canMoveToMe: canMoveToMe(r, c), canTakeMe: canTakeMe(r, c) }"
             />
           </span>
         </td>
@@ -56,10 +53,31 @@ import {
 })
 export default class ChessBoard extends Vue {
   board = new Board();
+  positions: Array<Position> = [];
   promoteConfig: PromoteConfig | null = null;
+  from: Position | null = null;
 
   getSelf(): ChessBoard {
     return this;
+  }
+
+  setPositions(row: number, col: number): boolean {
+    const bp = this.board.getBoard()[row][col]
+    if (bp && bp.getPieceColor() === this.board.getCurrent()) {
+      this.from = new Position(row, col);
+      this.positions = this.board.getPositions(this.from);
+    } else if (!this.positions.some(p => p.row === row && p.column === col)) {
+      this.from = null;
+      this.positions = [];
+    }
+    return true;
+  }
+
+  itsMe(row: number, col: number): boolean {
+    if (this.from && this.board.getBoard()[row][col]) {
+      return this.from.row === row && this.from.column === col;
+    }
+    return false;
   }
 
   getImage(bp: BoardPiece): string {
@@ -143,6 +161,26 @@ export default class ChessBoard extends Vue {
     }
   }
 
+  isWhiteClass(row: number, col: number): boolean {
+    if (row % 2 === 0) {
+      if (col % 2 === 0) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (col % 2 === 0) {
+        return false;
+      } else {
+        return true;
+      }
+    }
+  }
+
+  isBlackClass(row: number, col: number): boolean {
+    return !this.isWhiteClass(row, col);
+  }
+
   startDrag(evt: DragEvent, fromRow: number, fromCol: number): void {
     if (evt && evt.dataTransfer) {
       console.log("Draggig from " + fromRow + " " + fromCol);
@@ -171,6 +209,35 @@ export default class ChessBoard extends Vue {
         };
       }
     }
+  }
+
+  moveToMe(row: number, col: number): void {
+    if (this.from && this.positions.some(p => p.row === row && p.column === col)) {
+      const to = new Position(row, col);
+      const moveOutput = this.board.move(this.from, to);
+      if (moveOutput.promoteOptions) {
+        this.promoteConfig = {
+          to: to,
+          promoteOptions: moveOutput.promoteOptions,
+          board: this.board
+        };
+      }
+      this.from = null;
+      this.positions = [];
+    }
+  }
+
+  canMoveToMe(row: number, col: number): boolean {
+    const bp = this.board.getBoard()[row][col];
+    return !bp && this.positions.some(p => p.row === row && p.column === col);
+  }
+
+  canTakeMe(row: number, col: number): boolean {
+    const bp = this.board.getBoard()[row][col];
+    if (bp) {
+      return this.positions.some(p => p.row === row && p.column === col);
+    }
+    return false;
   }
 
   promotionCompleted(): void {
@@ -216,5 +283,18 @@ img {
 }
 .blackClass {
   background: #c68642;
+}
+.canTakeMe {
+  outline: 2px dashed rgb(31, 110, 84);
+}
+.itsMe {
+  background: rgb(31, 182, 132);
+}
+.canMoveToMe {
+  height: 1px;
+  width: 1px;
+  background: rgb(31, 110, 84);
+  border-radius: 50%;
+  display: inline-block;
 }
 </style>

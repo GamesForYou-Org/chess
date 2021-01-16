@@ -348,8 +348,8 @@ class PawnMoveValidator extends AbstractMoveValidator {
     const isWhite = board.getCurrent() === PieceColor.White;
     if (
       !check &&
-      ((from.row === 6 && to.row === 4 && from.column === to.column) ||
-        (from.row == 1 && to.row == 3 && from.column === to.column))
+      ((from.row === 6 && to.row === 4 && from.column === to.column && isWhite) ||
+        (from.row == 1 && to.row == 3 && from.column === to.column && !isWhite))
     ) {
       const bp = b[to.row][to.column];
       if (bp) {
@@ -362,7 +362,7 @@ class PawnMoveValidator extends AbstractMoveValidator {
     if (
       !check &&
       from.column === to.column &&
-      (from.row + 1 === to.row || from.row - 1 === to.row)
+      ((from.row + 1 === to.row && !isWhite) || (from.row - 1 === to.row && isWhite))
     ) {
       const bp = b[to.row][to.column];
       if (bp) {
@@ -447,8 +447,8 @@ export interface MoveOutput {
 }
 
 // TODO: implement draws
-// TODO: implement not keep own king in check
-// TODO: when king is in check, do not allow move that keeps it in check
+// TODO: getPositions should return two results: positions to move and
+// positions where theres pieces to take
 export class Board {
   private board: Array<Array<BoardPiece | null>>;
   private current: PieceColor;
@@ -553,6 +553,29 @@ export class Board {
 
   getBoard(): Array<Array<BoardPiece | null>> {
     return this.board;
+  }
+
+  getPositions(from: Position): Array<Position> {
+    const bp = this.board[from.row][from.column];
+    if (!bp || bp.getPieceColor() !== this.current) {
+      return [];
+    }
+
+    let result: Array<Position> = [];
+    const moveValidator = moveValidators[bp.getPiece()];
+
+    for (let r = 0; r <= 7; r++) {
+      for (let c = 0; c <= 7; c++) {
+        const to = new Position(r, c);
+        if (moveValidator.isAllowed(this, from, to, false, false) !== MoveResult.NOT_ALLOWED) {
+          result.push(to);
+        }
+      }
+    }
+
+    result = result.filter(to => this.isCheckFree(bp, from, to));
+
+    return result;
   }
 
   move(from: Position, to: Position): MoveOutput {
