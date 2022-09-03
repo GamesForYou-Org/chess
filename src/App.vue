@@ -1,14 +1,16 @@
 <template>
-  <ChessBoard />
+  <AccessGame />
 </template>
 
 <script lang="ts">
 import { Options, Vue } from "vue-class-component";
 import ChessBoard from "./components/ChessBoard.vue";
+import AccessGame from "./components/AccessGame.vue";
+
 
 @Options({
   components: {
-    ChessBoard
+    AccessGame
   }
 })
 export default class App extends Vue {}
